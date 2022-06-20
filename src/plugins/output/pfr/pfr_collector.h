@@ -72,8 +72,7 @@
  * \param[in] msg   IPFIX message which will be printed
  * \param[in] iemgr Information Element manager
  */
-void
-read_packet(ipx_msg_ipfix_t *msg, const fds_iemgr_t *iemgr);
+void read_packet(ipx_msg_ipfix_t *msg, const fds_iemgr_t *iemgr);
 
 /**
  * \brief Print all values inside the single Data Record of an IPFIX message
@@ -83,8 +82,7 @@ read_packet(ipx_msg_ipfix_t *msg, const fds_iemgr_t *iemgr);
  * \param[in] indent Additional output indentation
  * \param[in] iemgr  Information Element manager
  */
-void
-read_record(struct fds_drec *rec, unsigned int indent, const fds_iemgr_t *iemgr);
+void read_record(struct fds_drec *rec, unsigned int indent, const fds_iemgr_t *iemgr);
 
 /**
  * \brief Print the value of the Data Record field
@@ -97,9 +95,7 @@ read_record(struct fds_drec *rec, unsigned int indent, const fds_iemgr_t *iemgr)
  * \param[in] iemgr  Information Element manager
  * \param[in] snap   Template snapshot of the Data Record
  */
-void
-read_field(struct fds_drec_field *field, unsigned int indent, const fds_iemgr_t *iemgr,
-    const fds_tsnapshot_t *snap);
+void read_field(struct fds_drec_field *field, unsigned int indent, const fds_iemgr_t *iemgr, const fds_tsnapshot_t *snap);
 
 /**
  * \brief Print the content of basicList data type
@@ -110,9 +106,7 @@ read_field(struct fds_drec_field *field, unsigned int indent, const fds_iemgr_t 
  * \param[in] iemgr  Information Element manager
  * \param[in] snap   Template snapshot of the Data Record
  */
-void
-read_list_basic(struct fds_drec_field *field, unsigned int indent, const fds_iemgr_t *iemgr,
-    const fds_tsnapshot_t *snap);
+void read_list_basic(struct fds_drec_field *field, unsigned int indent, const fds_iemgr_t *iemgr, const fds_tsnapshot_t *snap);
 
 /**
  * \brief Print the content of subTemplateList data type
@@ -123,9 +117,7 @@ read_list_basic(struct fds_drec_field *field, unsigned int indent, const fds_iem
  * \param[in] iemgr  Information Element manager
  * \param[in] snap   Template snapshot of the Data Record
  */
-void
-read_list_stl(struct fds_drec_field *field, unsigned int indent, const fds_iemgr_t *iemgr,
-    const fds_tsnapshot_t *snap);
+void read_list_stl(struct fds_drec_field *field, unsigned int indent, const fds_iemgr_t *iemgr, const fds_tsnapshot_t *snap);
 
 /**
  * \brief Print the content of subTemplateMultiList data type
@@ -136,9 +128,7 @@ read_list_stl(struct fds_drec_field *field, unsigned int indent, const fds_iemgr
  * \param[in] iemgr  Information Element manager
  * \param[in] snap   Template snapshot of the Data Record
  */
-void
-read_list_stml(struct fds_drec_field *field, unsigned int indent, const fds_iemgr_t *iemgr,
-    const fds_tsnapshot_t *snap);
+void read_list_stml(struct fds_drec_field *field, unsigned int indent, const fds_iemgr_t *iemgr, const fds_tsnapshot_t *snap);
 
 /**
  * \brief Print the (Options) Template Record
@@ -149,8 +139,7 @@ read_list_stml(struct fds_drec_field *field, unsigned int indent, const fds_iemg
  * \param[in] set_id    ID of the Set to which the record belongs
  * \param[in] iemgr     Information Element manager
  */
-void
-read_template_set(struct fds_tset_iter *tset_iter, uint16_t set_id, const fds_iemgr_t *iemgr);
+void read_template_set(struct fds_tset_iter *tset_iter, uint16_t set_id, const fds_iemgr_t *iemgr);
 
 /**
  * \brief Print the IPFIX Set and its content
@@ -163,7 +152,6 @@ read_template_set(struct fds_tset_iter *tset_iter, uint16_t set_id, const fds_ie
  * \param[in]     iemgr     Information Element manager
  * \param[in/out] rec_i     Number of processed Data Records
  */
-void
-read_set(struct ipx_ipfix_set *set, ipx_msg_ipfix_t *msg, const fds_iemgr_t *iemgr, uint32_t *rec_i);
+void read_set(struct ipx_ipfix_set *set, ipx_msg_ipfix_t *msg, const fds_iemgr_t *iemgr, uint32_t *rec_i);
 
 #endif //IPFIXCOL_READER_H

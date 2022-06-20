@@ -21,6 +21,7 @@ extern std::map<std::string, tuple5 *> dst_ip;
 extern std::map<std::string, int> dst_ip_t;
 //      //      |doctets  |dst_ip
 extern std::map<int, std::string> tdst_ip;
+
 /**
  * \file src/plugins/output/viewer/Reader.c
  * \author Jan Kala <xkalaj01@stud.fit.vutbr.cz>
@@ -69,9 +70,7 @@ extern std::map<int, std::string> tdst_ip;
 #include <ipfixcol2.h>
 #include "pfr_collector.h"
 
-void
-read_packet(ipx_msg_ipfix_t *msg, const fds_iemgr_t *iemgr)
-{
+void read_packet(ipx_msg_ipfix_t *msg, const fds_iemgr_t *iemgr) {
     const struct fds_ipfix_msg_hdr *ipfix_msg_hdr;
     ipfix_msg_hdr = (const struct fds_ipfix_msg_hdr*)ipx_msg_ipfix_get_packet(msg);
 
@@ -104,9 +103,7 @@ read_packet(ipx_msg_ipfix_t *msg, const fds_iemgr_t *iemgr)
     fflush(stdout);
 }
 
-void
-read_set(struct ipx_ipfix_set *set, ipx_msg_ipfix_t *msg, const fds_iemgr_t *iemgr, uint32_t *rec_i)
-{
+void read_set(struct ipx_ipfix_set *set, ipx_msg_ipfix_t *msg, const fds_iemgr_t *iemgr, uint32_t *rec_i) {
     uint8_t *set_end = (uint8_t *)set->ptr + ntohs(set->ptr->length);
     uint16_t set_id = ntohs(set->ptr->flowset_id);
 
@@ -172,9 +169,7 @@ read_set(struct ipx_ipfix_set *set, ipx_msg_ipfix_t *msg, const fds_iemgr_t *iem
     printf("\t<Unknown set ID>\n");
 }
 
-void
-read_template_set(struct fds_tset_iter *tset_iter, uint16_t set_id, const fds_iemgr_t *iemgr)
-{
+void read_template_set(struct fds_tset_iter *tset_iter, uint16_t set_id, const fds_iemgr_t *iemgr) {
     enum fds_template_type type;
     void *ptr;
     switch (set_id){
@@ -247,17 +242,13 @@ read_template_set(struct fds_tset_iter *tset_iter, uint16_t set_id, const fds_ie
     fds_template_destroy(tmplt);
 }
 
-void
-print_indent(unsigned int n)
-{
+void print_indent(unsigned int n) {
     for (unsigned int i = 0; i < n; i++){
         putchar('\t');
     }
 }
 
-void
-read_record(struct fds_drec *rec, unsigned int indent, const fds_iemgr_t *iemgr)
-{
+void read_record(struct fds_drec *rec, unsigned int indent, const fds_iemgr_t *iemgr) {
     // Iterate through all the fields in record
     struct fds_drec_iter iter;
     fds_drec_iter_init(&iter, rec, FDS_DREC_PADDING_SHOW);
@@ -268,9 +259,7 @@ read_record(struct fds_drec *rec, unsigned int indent, const fds_iemgr_t *iemgr)
     }
 }
 
-const char *
-fds_semantic2str(enum fds_ipfix_list_semantics semantic)
-{
+const char * fds_semantic2str(enum fds_ipfix_list_semantics semantic) {
     switch (semantic){
         case (FDS_IPFIX_LIST_ALL_OF):
             return "All of";
@@ -287,10 +276,7 @@ fds_semantic2str(enum fds_ipfix_list_semantics semantic)
     }
 }
 
-void
-read_field(struct fds_drec_field *field, unsigned int indent, const fds_iemgr_t *iemgr,
-        const fds_tsnapshot_t *snap)
-{
+void read_field(struct fds_drec_field *field, unsigned int indent, const fds_iemgr_t *iemgr, const fds_tsnapshot_t *snap) {
     // Write info from header about field
     print_indent(indent);
     printf("EN: %-*" PRIu32" ID: %-*" PRIu16" ", WRITER_EN_SPACE, field->info->en,
@@ -382,10 +368,7 @@ read_field(struct fds_drec_field *field, unsigned int indent, const fds_iemgr_t 
     }
 }
 
-void
-read_list_basic(struct fds_drec_field *field, unsigned int indent, const fds_iemgr_t *iemgr,
-    const fds_tsnapshot_t *snap)
-{
+void read_list_basic(struct fds_drec_field *field, unsigned int indent, const fds_iemgr_t *iemgr, const fds_tsnapshot_t *snap) {
     printf(" (basicList");
 
     struct fds_blist_iter it;
@@ -456,10 +439,7 @@ read_list_basic(struct fds_drec_field *field, unsigned int indent, const fds_iem
     }
 }
 
-void
-read_list_stl(struct fds_drec_field *field, unsigned int indent, const fds_iemgr_t *iemgr,
-    const fds_tsnapshot_t *snap)
-{
+void read_list_stl(struct fds_drec_field *field, unsigned int indent, const fds_iemgr_t *iemgr, const fds_tsnapshot_t *snap) {
     struct fds_stlist_iter it;
     fds_stlist_iter_init(&it, field, snap, FDS_STL_REPORT);
     print_indent(indent);
@@ -501,10 +481,7 @@ read_list_stl(struct fds_drec_field *field, unsigned int indent, const fds_iemgr
     }
 }
 
-void
-read_list_stml(struct fds_drec_field *field, unsigned int indent, const fds_iemgr_t *iemgr,
-    const fds_tsnapshot_t *snap)
-{
+void read_list_stml(struct fds_drec_field *field, unsigned int indent, const fds_iemgr_t *iemgr, const fds_tsnapshot_t *snap) {
     struct fds_stmlist_iter it;
     fds_stmlist_iter_init(&it, field, snap, FDS_STL_REPORT);
     print_indent(indent);
