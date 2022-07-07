@@ -37,8 +37,8 @@
 * if advised of the possibility of such damage.
 *
 */
-#ifndef IPFIXCOL_READER_H
-#define IPFIXCOL_READER_H
+#ifndef PFR_COLLECTOR_H
+#define PFR_COLLECTOR_H
 
 #include <ipfixcol2.h>
 
@@ -63,6 +63,34 @@
  */
 #define WRITER_ORG_NAME_SPACE 12
 
+class pfr_collector {
+private:
+ //      |dst_ip     |tuple5
+ std::map<std::string, tuple5 *> dst_ip;
+ //      |dst_ip                |src_ip               |dst_port     |src_port     |protocol|doctets
+ std::map<std::string, std::map<std::string, std::map<int, std::map<int, std::map<int, int>>>>> dst_ip_m;
+ //      |dst_ip                |src_ip               |dst_port     |src_port     |protocol|dpkts
+ std::map<std::string, std::map<std::string, std::map<int, std::map<int, std::map<int, int>>>>> dst_ip_mp;
+ //      |dst_ip     |doctets
+ std::map<std::string, int> dst_ip_t;
+ //      |doctets  |dst_ip
+ std::map<int, std::string> tdst_ip;
+
+
+public:
+ std::map<std::string, tuple5 *> get_dst_ip();
+ std::map<std::string, std::map<std::string, std::map<int, std::map<int, std::map<int, int>>>>> get_dst_ip_m();
+ std::map<std::string, std::map<std::string, std::map<int, std::map<int, std::map<int, int>>>>> get_dst_ip_mp();
+ std::map<std::string, int> get_dst_ip_t();
+ std::map<int, std::string> get_dst_tdst_ip();
+
+ void set_dst_ip(std::string d_ip, tuple5 *t5);
+ void set_dst_ip_m(std::string d_ip, std::string s_ip, int d_port, int s_port, int proto, int doctets);
+ void set_dst_ip_mp(std::string d_ip, std::string s_ip, int d_port, int s_port, int proto, int dpkts);
+ void set_dst_ip_t(std::string d_ip, int doctets);
+ void set_dst_tdst_ip(int doctets, std::string d_ip);
+
+ static const char * session_src_addr(const struct ipx_session *ipx_desc, char *src_addr, socklen_t size);
 /**
  * \brief Print all data of an IPFIX Message
  *
@@ -72,7 +100,7 @@
  * \param[in] msg   IPFIX message which will be printed
  * \param[in] iemgr Information Element manager
  */
-void read_packet(ipx_msg_ipfix_t *msg, const fds_iemgr_t *iemgr);
+static void read_packet(ipx_msg_ipfix_t *msg, const fds_iemgr_t *iemgr);
 
 /**
  * \brief Print all values inside the single Data Record of an IPFIX message
@@ -82,7 +110,7 @@ void read_packet(ipx_msg_ipfix_t *msg, const fds_iemgr_t *iemgr);
  * \param[in] indent Additional output indentation
  * \param[in] iemgr  Information Element manager
  */
-void read_record(struct fds_drec *rec, unsigned int indent, const fds_iemgr_t *iemgr);
+static void read_record(struct fds_drec *rec, unsigned int indent, const fds_iemgr_t *iemgr);
 
 /**
  * \brief Print the value of the Data Record field
@@ -95,7 +123,7 @@ void read_record(struct fds_drec *rec, unsigned int indent, const fds_iemgr_t *i
  * \param[in] iemgr  Information Element manager
  * \param[in] snap   Template snapshot of the Data Record
  */
-void read_field(struct fds_drec_field *field, unsigned int indent, const fds_iemgr_t *iemgr, const fds_tsnapshot_t *snap);
+static void read_field(struct fds_drec_field *field, unsigned int indent, const fds_iemgr_t *iemgr, const fds_tsnapshot_t *snap);
 
 /**
  * \brief Print the content of basicList data type
@@ -106,7 +134,7 @@ void read_field(struct fds_drec_field *field, unsigned int indent, const fds_iem
  * \param[in] iemgr  Information Element manager
  * \param[in] snap   Template snapshot of the Data Record
  */
-void read_list_basic(struct fds_drec_field *field, unsigned int indent, const fds_iemgr_t *iemgr, const fds_tsnapshot_t *snap);
+static void read_list_basic(struct fds_drec_field *field, unsigned int indent, const fds_iemgr_t *iemgr, const fds_tsnapshot_t *snap);
 
 /**
  * \brief Print the content of subTemplateList data type
@@ -117,7 +145,7 @@ void read_list_basic(struct fds_drec_field *field, unsigned int indent, const fd
  * \param[in] iemgr  Information Element manager
  * \param[in] snap   Template snapshot of the Data Record
  */
-void read_list_stl(struct fds_drec_field *field, unsigned int indent, const fds_iemgr_t *iemgr, const fds_tsnapshot_t *snap);
+static void read_list_stl(struct fds_drec_field *field, unsigned int indent, const fds_iemgr_t *iemgr, const fds_tsnapshot_t *snap);
 
 /**
  * \brief Print the content of subTemplateMultiList data type
@@ -128,7 +156,7 @@ void read_list_stl(struct fds_drec_field *field, unsigned int indent, const fds_
  * \param[in] iemgr  Information Element manager
  * \param[in] snap   Template snapshot of the Data Record
  */
-void read_list_stml(struct fds_drec_field *field, unsigned int indent, const fds_iemgr_t *iemgr, const fds_tsnapshot_t *snap);
+static void read_list_stml(struct fds_drec_field *field, unsigned int indent, const fds_iemgr_t *iemgr, const fds_tsnapshot_t *snap);
 
 /**
  * \brief Print the (Options) Template Record
@@ -139,7 +167,7 @@ void read_list_stml(struct fds_drec_field *field, unsigned int indent, const fds
  * \param[in] set_id    ID of the Set to which the record belongs
  * \param[in] iemgr     Information Element manager
  */
-void read_template_set(struct fds_tset_iter *tset_iter, uint16_t set_id, const fds_iemgr_t *iemgr);
+static void read_template_set(struct fds_tset_iter *tset_iter, uint16_t set_id, const fds_iemgr_t *iemgr);
 
 /**
  * \brief Print the IPFIX Set and its content
@@ -152,6 +180,10 @@ void read_template_set(struct fds_tset_iter *tset_iter, uint16_t set_id, const f
  * \param[in]     iemgr     Information Element manager
  * \param[in/out] rec_i     Number of processed Data Records
  */
-void read_set(struct ipx_ipfix_set *set, ipx_msg_ipfix_t *msg, const fds_iemgr_t *iemgr, uint32_t *rec_i);
+static void read_set(struct ipx_ipfix_set *set, ipx_msg_ipfix_t *msg, const fds_iemgr_t *iemgr, uint32_t *rec_i);
 
-#endif //IPFIXCOL_READER_H
+};
+
+
+
+#endif // PFR_COLLECTOR_H

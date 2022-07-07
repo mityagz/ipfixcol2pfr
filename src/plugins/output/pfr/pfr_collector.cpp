@@ -15,12 +15,6 @@
 
 #include "main.h"
 
-//      |dst_ip     |tuple5
-extern std::map<std::string, tuple5 *> dst_ip;
-//      |dst_ip     |doctets
-extern std::map<std::string, int> dst_ip_t;
-//      //      |doctets  |dst_ip
-extern std::map<int, std::string> tdst_ip;
 
 /**
  * \file src/plugins/output/viewer/Reader.c
@@ -63,14 +57,94 @@ extern std::map<int, std::string> tdst_ip;
 *
 */
 
+#include <iostream>
 #include <inttypes.h>
 #include <stdio.h>
+#include <string.h>
 #include <libfds.h>
 //#include "Reader.h"
 #include <ipfixcol2.h>
 #include "pfr_collector.h"
+#include "pfr_ipx.h"
 
-void read_packet(ipx_msg_ipfix_t *msg, const fds_iemgr_t *iemgr) {
+//      |dst_ip     |tuple5
+extern std::map<std::string, tuple5 *> dst_ip;
+//      |dst_ip     |doctets
+extern std::map<std::string, int> dst_ip_t0;
+//      //      |doctets  |dst_ip
+extern std::map<int, std::string> tdst_ip;
+//      |dst_ip                |src_ip               |dst_port     |src_port     |protocol|doctets
+extern std::map<std::string, std::map<std::string, std::map<int, std::map<int, std::map<int, int>>>>> dst_ip_m0;
+extern std::map<std::string, std::map<std::string, std::map<int, std::map<int, std::map<int, int>>>>> dst_ip_m1;
+//      |dst_ip                |src_ip               |dst_port     |src_port     |protocol|dpkts
+extern std::map<std::string, std::map<std::string, std::map<int, std::map<int, std::map<int, int>>>>> dst_ip_mp;
+
+//extern class pfr_ipx ss_ipx;
+extern struct pfr_sql_data pdata;
+char src_addr[INET6_ADDRSTRLEN];
+
+/*
+ class pfr_collector {
+  private:
+  //      |dst_ip     |tuple5
+  std::map<std::string, tuple5 *> dst_ip;
+  //      |dst_ip                |src_ip               |dst_port     |src_port     |protocol|doctets
+  std::map<std::string, std::map<std::string, std::map<int, std::map<int, std::map<int, int>>>>> dst_ip_m;
+  //      |dst_ip                |src_ip               |dst_port     |src_port     |protocol|dpkts
+  std::map<std::string, std::map<std::string, std::map<int, std::map<int, std::map<int, int>>>>> dst_ip_mp;
+  //      |dst_ip     |doctets
+  std::map<std::string, int> dst_ip_t;
+  //      |doctets  |dst_ip
+  std::map<int, std::string> tdst_ip;
+*/
+
+std::map<std::string, tuple5 *> pfr_collector::get_dst_ip() { return dst_ip; }
+std::map<std::string, std::map<std::string, std::map<int, std::map<int, std::map<int, int>>>>> pfr_collector::get_dst_ip_m() { return dst_ip_m; }
+std::map<std::string, std::map<std::string, std::map<int, std::map<int, std::map<int, int>>>>> pfr_collector::get_dst_ip_mp() { return dst_ip_mp; }
+std::map<std::string, int> pfr_collector::get_dst_ip_t() { return dst_ip_t; }
+std::map<int, std::string> pfr_collector::get_dst_tdst_ip() { return tdst_ip; }
+
+void pfr_collector::set_dst_ip(std::string d_ip, tuple5 *t5) { dst_ip[d_ip] = t5; }
+
+void pfr_collector::set_dst_ip_m(std::string d_ip, std::string s_ip, int d_port, int s_port, int proto, int doctets) { 
+    dst_ip_m[d_ip][s_ip][d_port][s_port][proto] = doctets; 
+}
+
+void pfr_collector::set_dst_ip_mp(std::string d_ip, std::string s_ip, int d_port, int s_port, int proto, int dpkts) { 
+    dst_ip_m[d_ip][s_ip][d_port][s_port][proto] = dpkts; 
+}
+
+void pfr_collector::set_dst_ip_t(std::string d_ip, int doctets) { dst_ip_t[d_ip] = doctets; }
+void pfr_collector::set_dst_tdst_ip(int doctets, std::string d_ip) { tdst_ip[doctets] = d_ip; }
+
+char buffer[1024];
+
+const char* pfr_collector::session_src_addr(const struct ipx_session *ipx_desc, char *src_addr, socklen_t size) {
+    const struct ipx_session_net *net_desc;
+    switch (ipx_desc->type) {
+        case FDS_SESSION_UDP:
+            net_desc = &ipx_desc->udp.net;
+            break;
+        case FDS_SESSION_TCP:
+            net_desc = &ipx_desc->tcp.net;
+            break;
+        case FDS_SESSION_SCTP:
+            net_desc = &ipx_desc->sctp.net;
+            break;
+        default:
+            return nullptr;
+                                                                                    }
+
+        const char *ret;
+        if (net_desc->l3_proto == AF_INET) {
+            ret = inet_ntop(AF_INET, &net_desc->addr_src.ipv4, src_addr, size);
+        } else {
+            ret = inet_ntop(AF_INET6, &net_desc->addr_src.ipv6, src_addr, size);
+        return ret;
+        }
+}
+
+void pfr_collector::read_packet(ipx_msg_ipfix_t *msg, const fds_iemgr_t *iemgr) {
     const struct fds_ipfix_msg_hdr *ipfix_msg_hdr;
     ipfix_msg_hdr = (const struct fds_ipfix_msg_hdr*)ipx_msg_ipfix_get_packet(msg);
 
@@ -79,6 +153,7 @@ void read_packet(ipx_msg_ipfix_t *msg, const fds_iemgr_t *iemgr) {
     }
 
     // Print packet header
+    /*
     printf("--------------------------------------------------------------------------------\n");
     printf("IPFIX Message header:\n");
     printf("\tVersion:      %" PRIu16"\n",ntohs(ipfix_msg_hdr->version));
@@ -86,6 +161,11 @@ void read_packet(ipx_msg_ipfix_t *msg, const fds_iemgr_t *iemgr) {
     printf("\tExport time:  %" PRIu32"\n",ntohl(ipfix_msg_hdr->export_time));
     printf("\tSequence no.: %" PRIu32"\n",ntohl(ipfix_msg_hdr->seq_num));
     printf("\tODID:         %" PRIu32"\n", ntohl(ipfix_msg_hdr->odid));
+    */
+
+    const struct ipx_msg_ctx *msg_ctx = ipx_msg_ipfix_get_ctx(msg);
+    pfr_collector::session_src_addr(msg_ctx->session, src_addr, INET6_ADDRSTRLEN);
+    //std::cout << "Exporter ip:" << src_addr << std::endl;
 
     // Get number of sets
     struct ipx_ipfix_set *sets;
@@ -97,13 +177,13 @@ void read_packet(ipx_msg_ipfix_t *msg, const fds_iemgr_t *iemgr) {
 
     // Iteration through all the sets
     for (uint32_t i = 0; i < set_cnt; ++i){
-        read_set(&sets[i], msg, iemgr, &rec_i);
+        pfr_collector::read_set(&sets[i], msg, iemgr, &rec_i);
     }
 
     fflush(stdout);
 }
 
-void read_set(struct ipx_ipfix_set *set, ipx_msg_ipfix_t *msg, const fds_iemgr_t *iemgr, uint32_t *rec_i) {
+void pfr_collector::read_set(struct ipx_ipfix_set *set, ipx_msg_ipfix_t *msg, const fds_iemgr_t *iemgr, uint32_t *rec_i) {
     uint8_t *set_end = (uint8_t *)set->ptr + ntohs(set->ptr->length);
     uint16_t set_id = ntohs(set->ptr->flowset_id);
 
@@ -117,6 +197,7 @@ void read_set(struct ipx_ipfix_set *set, ipx_msg_ipfix_t *msg, const fds_iemgr_t
         set_type = "Data Set";
     }
 
+    /*
     printf("\n");
     printf("Set Header:\n");
     printf("\tSet ID: %" PRIu16" (%s)\n", set_id, set_type);
@@ -140,6 +221,7 @@ void read_set(struct ipx_ipfix_set *set, ipx_msg_ipfix_t *msg, const fds_iemgr_t
         }
         return;
     }
+    */
 
     if (set_id >= FDS_IPFIX_SET_MIN_DSET) {
         // Data set
@@ -147,16 +229,16 @@ void read_set(struct ipx_ipfix_set *set, ipx_msg_ipfix_t *msg, const fds_iemgr_t
         if (ipfix_rec == NULL) return;
 
         // All the records in the set has same template id, so we extract it from the first record and print it
-        printf("\tTemplate ID: %" PRIu16"\n", ipfix_rec->rec.tmplt->id);
+        //printf("\tTemplate ID: %" PRIu16"\n", ipfix_rec->rec.tmplt->id);
         unsigned int iter_cnt = 0;
 
         // Iteration through the records which belongs to the current set
         while ((ipfix_rec != NULL) && (ipfix_rec->rec.data < set_end) && (*rec_i < rec_cnt)) {
             // Print record header
-            printf("- Data Record (#%u) [Length: %" PRIu16"]:\n", ++iter_cnt, ipfix_rec->rec.size);
+            //printf("- Data Record (#%u) [Length: %" PRIu16"]:\n", ++iter_cnt, ipfix_rec->rec.size);
             // Get the specific record and read all the fields
-            read_record(&ipfix_rec->rec, 1, iemgr);
-            putchar('\n');
+            pfr_collector::read_record(&ipfix_rec->rec, 1, iemgr);
+            //putchar('\n');
 
             // Get the next record
             (*rec_i)++;
@@ -165,82 +247,8 @@ void read_set(struct ipx_ipfix_set *set, ipx_msg_ipfix_t *msg, const fds_iemgr_t
         return;
     }
 
-    //Unknown set ID
-    printf("\t<Unknown set ID>\n");
 }
 
-void read_template_set(struct fds_tset_iter *tset_iter, uint16_t set_id, const fds_iemgr_t *iemgr) {
-    enum fds_template_type type;
-    void *ptr;
-    switch (set_id){
-        case FDS_IPFIX_SET_TMPLT:
-            type = FDS_TYPE_TEMPLATE;
-            ptr = tset_iter->ptr.trec;
-            break;
-        case FDS_IPFIX_SET_OPTS_TMPLT:
-            type = FDS_TYPE_TEMPLATE_OPTS;
-            ptr = tset_iter->ptr.opts_trec;
-            break;
-        default:
-            printf("\t<Undefined template>\n");
-            return;
-    }
-    // Filling the template structure with data from raw packet
-    uint16_t tmplt_size = tset_iter->size;
-    struct fds_template *tmplt;
-    if (fds_template_parse(type, ptr, &tmplt_size, &tmplt) != FDS_OK){
-        printf("*Template parsing error*\n");
-        return;
-    }
-
-    // Printing out the header
-    printf("\tTemplate ID: %" PRIu16"\n", tmplt->id);
-    printf("\tField Count: %" PRIu16"\n", tmplt->fields_cnt_total);
-    if (type == FDS_TYPE_TEMPLATE_OPTS) {
-        printf("\tScope Field Count: %" PRIu16"\n", tmplt->fields_cnt_scope);
-    }
-
-    // Using IEManager to fill the definitions of the fields in the template
-    if(fds_template_ies_define(tmplt, iemgr , false) != FDS_OK){
-        printf("*Error while assigning element definitions in template*\n");
-        fds_template_destroy(tmplt);
-        return;
-    }
-
-    // Iteration through the fields and printing them out
-    for (uint16_t i = 0; i < tmplt->fields_cnt_total ; ++i) {
-        struct fds_tfield current = tmplt->fields[i];
-        printf("\t");
-        printf("EN: %-*" PRIu32" ", WRITER_EN_SPACE, current.en);
-        printf("ID: %-*" PRIu16" ", WRITER_ID_SPACE, current.id);
-        printf("Size: ");
-        // In case of variable length print keyword "var"
-        current.length == FDS_IPFIX_VAR_IE_LEN
-            ? printf("%-*s ", WRITER_SIZE_SPACE, "var.")
-            : printf("%-*" PRIu16" ", WRITER_SIZE_SPACE, current.length);
-
-        const char *pen_name = "<unknown>";
-        const char *field_name = "<unknown>";
-        if (current.def != NULL) {
-            // Known definition
-            pen_name = current.def->scope->name;
-            field_name = current.def->name;
-        } else {
-            // Field is unknown ... try to find at least vendor
-            const struct fds_iemgr_scope *scope_ptr = fds_iemgr_scope_find_pen(iemgr, current.en);
-            if (scope_ptr != NULL) {
-                pen_name = scope_ptr->name;
-            }
-        }
-
-        printf("| %*s:%s", WRITER_ORG_NAME_SPACE, pen_name, field_name);
-        if ((current.flags & FDS_TFIELD_SCOPE) != 0) {
-            printf(" (scope)");
-        }
-        putchar('\n');
-    }
-    fds_template_destroy(tmplt);
-}
 
 void print_indent(unsigned int n) {
     for (unsigned int i = 0; i < n; i++){
@@ -248,15 +256,130 @@ void print_indent(unsigned int n) {
     }
 }
 
-void read_record(struct fds_drec *rec, unsigned int indent, const fds_iemgr_t *iemgr) {
+void pfr_collector::read_record(struct fds_drec *rec, unsigned int indent, const fds_iemgr_t *iemgr) {
     // Iterate through all the fields in record
     struct fds_drec_iter iter;
+    struct tuple11 tpl11;
+    struct tuple5 tpl5;
     fds_drec_iter_init(&iter, rec, FDS_DREC_PADDING_SHOW);
 
+    int inpt = 2518;
+    //std::string rbuf(buffer);
     while (fds_drec_iter_next(&iter) != FDS_EOC) {
         struct fds_drec_field field = iter.field;
-        read_field(&field, indent, iemgr, rec->snap);
+        int finfo = field.info->id;
+        //  src4addr    dst4addr    srcport dstport proto   input   output  srcas   dstas   doctets dpkts
+        //  8           12          7       11      4       10      14      16      17      1       2
+        if(finfo == 8 || finfo == 12 || finfo == 7 || finfo == 11 || finfo == 4 || finfo == 10 || finfo == 14 \
+                || finfo == 16 || finfo == 17 || finfo == 1 || finfo == 2) {
+            pfr_collector::read_field(&field, indent, iemgr, rec->snap);
+            std::string rbuf(buffer);
+            //std::cout << rbuf << ':';
+            switch(finfo) {
+                case 8:
+                 tpl11.srcaddr = rbuf;
+                 break;
+                case 12:
+                 tpl11.dstaddr = rbuf;
+                 break;
+                case 7:
+                 tpl11.srcport = std::stoi(rbuf);
+                 break;
+                case 11:
+                 tpl11.dstport = std::stoi(rbuf);
+                 break;
+                case 4:
+                 tpl11.proto = std::stoi(rbuf);
+                 break;
+                case 10:
+                 tpl11.input = std::stoi(rbuf);
+                 break;
+                case 14:
+                 tpl11.output = std::stoi(rbuf);
+                 break;
+                case 16:
+                 tpl11.srcas = std::stoi(rbuf);
+                 break;
+                case 17:
+                 tpl11.dstas = std::stoi(rbuf);
+                 break;
+                case 1:
+                 tpl11.doctets = std::stoi(rbuf);
+                 break;
+                case 2:
+                 tpl11.dpkts = std::stoi(rbuf);
+                 break;
+            }
+        }
     }
+
+    if(pdata.intf.get(src_addr, inpt, inpt)) {
+      tpl5.srcaddr = tpl11.srcaddr;
+      tpl5.dstaddr = tpl11.dstaddr;
+      tpl5.srcport = tpl11.srcport;
+      tpl5.dstport = tpl11.dstport;
+      tpl5.proto = tpl11.proto;
+      tpl5.doctets = tpl11.doctets;
+      tpl5.dpkts = tpl11.dpkts;
+      dst_ip_m0[tpl5.srcaddr][tpl5.dstaddr][tpl5.srcport][tpl5.dstport][tpl5.proto] += tpl5.doctets;
+      dst_ip_t0[tpl5.dstaddr] += tpl5.doctets;
+    }
+    
+/*
+//      |dst_ip     |tuple5
+extern std::map<std::string, tuple5 *> dst_ip;
+//      |dst_ip     |doctets
+extern std::map<std::string, int> dst_ip_t;
+//      //      |doctets  |dst_ip
+extern std::map<int, std::string> tdst_ip;
+
+ class pfr_collector {
+  private:
+  //      |dst_ip     |tuple5
+  std::map<std::string, tuple5 *> dst_ip;
+  //      |dst_ip                |src_ip               |dst_port     |src_port     |protocol|doctets
+  std::map<std::string, std::map<std::string, std::map<int, std::map<int, std::map<int, int>>>>> dst_ip_m;
+  //      |dst_ip                |src_ip               |dst_port     |src_port     |protocol|dpkts
+  std::map<std::string, std::map<std::string, std::map<int, std::map<int, std::map<int, int>>>>> dst_ip_mp;
+  //      |dst_ip     |doctets
+  std::map<std::string, int> dst_ip_t;
+  //      |doctets  |dst_ip
+  std::map<int, std::string> tdst_ip;
+
+
+    //ss_ipx_int.get("10.229.4.0", 5560, 2519);
+//      |dst_ip     |tuple5
+extern std::map<std::string, tuple5 *> dst_ip;
+//      |dst_ip     |doctets
+extern std::map<std::string, int> dst_ip_t;
+//      //      |doctets  |dst_ip
+extern std::map<int, std::string> tdst_ip;
+
+ class pfr_collector {
+  private:
+  //      |dst_ip     |tuple5
+  std::map<std::string, tuple5 *> dst_ip;
+  //      |dst_ip                |src_ip               |dst_port     |src_port     |protocol|doctets
+  std::map<std::string, std::map<std::string, std::map<int, std::map<int, std::map<int, int>>>>> dst_ip_m;
+  //      |dst_ip                |src_ip               |dst_port     |src_port     |protocol|dpkts
+  std::map<std::string, std::map<std::string, std::map<int, std::map<int, std::map<int, int>>>>> dst_ip_mp;
+  //      |dst_ip     |doctets
+  std::map<std::string, int> dst_ip_t;
+  //      |doctets  |dst_ip
+  std::map<int, std::string> tdst_ip;
+
+    struct tuple5 {
+        std::string srcaddr;
+        std::string dstaddr;
+        int srcport;
+        int dstport;
+        int proto;
+        int srcas;
+        int dstas;
+        int doctets;
+        int dpkts;
+    };
+    */
 }
 
 const char * fds_semantic2str(enum fds_ipfix_list_semantics semantic) {
@@ -276,11 +399,11 @@ const char * fds_semantic2str(enum fds_ipfix_list_semantics semantic) {
     }
 }
 
-void read_field(struct fds_drec_field *field, unsigned int indent, const fds_iemgr_t *iemgr, const fds_tsnapshot_t *snap) {
+void pfr_collector::read_field(struct fds_drec_field *field, unsigned int indent, const fds_iemgr_t *iemgr, const fds_tsnapshot_t *snap) {
     // Write info from header about field
-    print_indent(indent);
-    printf("EN: %-*" PRIu32" ID: %-*" PRIu16" ", WRITER_EN_SPACE, field->info->en,
-        WRITER_ID_SPACE, field->info->id);
+    //print_indent(indent);
+   // printf("EN: %-*" PRIu32" ID: %-*" PRIu16" ", WRITER_EN_SPACE, field->info->en,
+   //     WRITER_ID_SPACE, field->info->id);
 
     enum fds_iemgr_element_type type;
     const char *org;
@@ -312,19 +435,19 @@ void read_field(struct fds_drec_field *field, unsigned int indent, const fds_iem
 
     if (fds_iemgr_is_type_list(type)) {
         // Process lists
-        printf("%*s:%s", WRITER_ORG_NAME_SPACE, org, field_name);
+        //printf("%*s:%s", WRITER_ORG_NAME_SPACE, org, field_name);
         switch (type) {
         case FDS_ET_BASIC_LIST:
             // Note: header description will be complete in the function
-            read_list_basic(field, indent, iemgr, snap);
+            pfr_collector::read_list_basic(field, indent, iemgr, snap);
             break;
         case FDS_ET_SUB_TEMPLATE_LIST:
             printf(" (subTemplateList, see below)\n");
-            read_list_stl(field, indent, iemgr, snap);
+            //read_list_stl(field, indent, iemgr, snap);
             break;
         case FDS_ET_SUB_TEMPLATE_MULTILIST:
             printf(" (subTemplateMultiList, see below)\n");
-            read_list_stml(field, indent, iemgr, snap);
+            //read_list_stml(field, indent, iemgr, snap);
             break;
         default:
             printf("*Unsupported list type*\n");
@@ -334,13 +457,14 @@ void read_field(struct fds_drec_field *field, unsigned int indent, const fds_iem
         return;
     }
 
-    printf("%*s:%-*s : ", WRITER_ORG_NAME_SPACE, org, WRITER_FIELD_NAME_SPACE, field_name);
+    //printf("%*s:%-*s : ", WRITER_ORG_NAME_SPACE, org, WRITER_FIELD_NAME_SPACE, field_name);
     // Read and write the data from the field
-    char buffer[1024];
+    //char buffer[1024];
     int res = fds_field2str_be(field->data, field->size, type, buffer, sizeof(buffer));
 
     if(res >= 0){
         // Conversion was successful
+        /*
         if (type == FDS_ET_STRING) {
             printf("\"%s\"", buffer);
         } else if (type == FDS_ET_OCTET_ARRAY) {
@@ -350,9 +474,10 @@ void read_field(struct fds_drec_field *field, unsigned int indent, const fds_iem
         }
 
         if (*unit != 0) {
-            printf(" %s", unit);
+        //    printf(" %s", unit);
         }
         putchar('\n');
+        */
 
         return;
     }
@@ -368,7 +493,7 @@ void read_field(struct fds_drec_field *field, unsigned int indent, const fds_iem
     }
 }
 
-void read_list_basic(struct fds_drec_field *field, unsigned int indent, const fds_iemgr_t *iemgr, const fds_tsnapshot_t *snap) {
+void pfr_collector::read_list_basic(struct fds_drec_field *field, unsigned int indent, const fds_iemgr_t *iemgr, const fds_tsnapshot_t *snap) {
     printf(" (basicList");
 
     struct fds_blist_iter it;
@@ -431,128 +556,13 @@ void read_list_basic(struct fds_drec_field *field, unsigned int indent, const fd
         cnt_value++;
     }
 
+    /*
     if (cnt_value == 0) {
         print_indent(indent + 1);
         printf("EN: %-*" PRIu32" ID: %-*" PRIu16" ", WRITER_EN_SPACE, ie_en, WRITER_ID_SPACE, ie_id);
         printf("%*s:%-*s : ", WRITER_ORG_NAME_SPACE, name_scope, WRITER_FIELD_NAME_SPACE, name_field);
         printf("<empty>\n");
     }
+    */
 }
 
-void read_list_stl(struct fds_drec_field *field, unsigned int indent, const fds_iemgr_t *iemgr, const fds_tsnapshot_t *snap) {
-    struct fds_stlist_iter it;
-    fds_stlist_iter_init(&it, field, snap, FDS_STL_REPORT);
-    print_indent(indent);
-    printf("> List semantic: %s, Template ID: %" PRIu16")\n", fds_semantic2str(it.semantic), it.tid);
-
-    unsigned int cnt_rec = 0;
-    bool more_records = true;
-
-    while (more_records) {
-        int rc = fds_stlist_iter_next(&it);
-        switch (rc) {
-        case FDS_OK:  // Process the record
-            break;
-        case FDS_EOC: // No more records
-            more_records = false;
-            continue;
-        case FDS_ERR_NOTFOUND: // Template is not available
-            print_indent(indent);
-            printf("  *Template not available - unable to decode*\n");
-            return;
-        case FDS_ERR_FORMAT:   // Something is wrong with the record
-            print_indent(indent);
-            printf("*Unable to continue due to malformed data: %s*\n", fds_stlist_iter_err(&it));
-            return;
-        default:
-            print_indent(indent);
-            printf("*Internal error: fds_stlist_iter_next(): unexpected return code*\n");
-            return;
-        }
-
-        print_indent(indent);
-        printf("  - Data Record (#%u) [Length: %" PRIu16"]\n", ++cnt_rec, it.rec.size);
-        read_record(&it.rec, indent + 1, iemgr);
-    }
-
-    if (cnt_rec == 0) {
-        print_indent(indent + 1);
-        printf(" <empty>\n");
-    }
-}
-
-void read_list_stml(struct fds_drec_field *field, unsigned int indent, const fds_iemgr_t *iemgr, const fds_tsnapshot_t *snap) {
-    struct fds_stmlist_iter it;
-    fds_stmlist_iter_init(&it, field, snap, FDS_STL_REPORT);
-    print_indent(indent);
-    printf("> List semantic: %s\n", fds_semantic2str(it.semantic));
-
-    unsigned int cnt_block = 0;
-    bool more_blocks = true;
-
-    // For each block in the list
-    while (more_blocks) {
-        int rc_block = fds_stmlist_iter_next_block(&it);
-        switch (rc_block) {
-        case FDS_OK:  // Process the block
-            break;
-        case FDS_EOC: // No more blocks
-            more_blocks = false;
-            continue;
-        case FDS_ERR_NOTFOUND: // Unable to read this block -> skip it
-            break;
-        case FDS_ERR_FORMAT:   // Something is wrong with the block
-            print_indent(indent);
-            printf("*Unable to continue due to malformed data: %s*\n", fds_stmlist_iter_err(&it));
-            return;
-        default:
-            print_indent(indent);
-            printf("*Internal error: fds_stmlist_iter_next_block(): unexpected return code*\n");
-            return;
-        }
-
-        print_indent(indent);
-        printf("- Top-level list header (#%u) [Template ID: %" PRIu16"]\n", ++cnt_block, it.tid);
-        if (rc_block == FDS_ERR_NOTFOUND) {
-            print_indent(indent);
-            printf("  *Template not available - unable to decode*\n");
-            continue;
-        }
-
-        unsigned int cnt_rec = 0;
-        bool more_recs = true;
-
-        while (more_recs) {
-            int rc_rec = fds_stmlist_iter_next_rec(&it);
-            switch (rc_rec) {
-            case FDS_OK:  // Process the record
-                break;
-            case FDS_EOC: // No more records in the current block
-                more_recs = false;
-                continue;
-            case FDS_ERR_FORMAT: // Something is wrong with the record
-                print_indent(indent);
-                printf("*Unable to continue due to malformed data: %s*\n", fds_stmlist_iter_err(&it));
-                return;
-            default:
-                print_indent(indent);
-                printf("*Internal error: fds_stmlist_iter_next_rec(): unexpected return code*\n");
-                return;
-            }
-
-            print_indent(indent);
-            printf("  - Data Record (#%u) [Length: %" PRIu16"]\n", ++cnt_rec, it.rec.size);
-            read_record(&it.rec, indent + 1, iemgr);
-        }
-
-        if (cnt_rec == 0) {
-            print_indent(indent + 1);
-            printf(" <empty>\n");
-        }
-    }
-
-    if (cnt_block == 0) {
-        print_indent(indent);
-        printf(" <empty>\n");
-    }
-}

@@ -32,6 +32,7 @@ class pfr_ipx {
 */
 
 
+pfr_ipx_int::pfr_ipx_int() {}
 pfr_ipx_int::pfr_ipx_int(Config &config) {
     pfr_ipx_int::sql_get_int(config);
 }
@@ -103,6 +104,7 @@ int pfr_ipx_int::get(std::string node, int snmp_idx, int if_idx) {
     return 0;
 }
 
+pfr_ipx::pfr_ipx() {}
 pfr_ipx::pfr_ipx(Config &config) {
     const char  *pghost = config.host.dbhost.c_str(),
                 *pgport = std::to_string(config.host.dbport).c_str(),

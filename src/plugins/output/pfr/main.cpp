@@ -46,16 +46,35 @@
 #include <map>
 #include <vector>
 #include <iostream>
+#include <cstdint>
+#include <cstring>
+#include <stdio.h>
+#include <stdlib.h>
+#include <signal.h>
+#include <semaphore.h>
+#include <fcntl.h>           /* For O_* constants */
+#include <sys/stat.h> 
+#include <unistd.h>
+#include <sys/ipc.h>
+#include <sys/sem.h>
+#include <sys/shm.h>
 #include "main.h"
 #include "pfr_ipx.h"
+#include "pfr_collector.h"
 #include "config.h"
 
 //      |dsp_ip     |tuple5
 std::map<std::string, tuple5 *> dst_ip;
 //      |dsp_ip     |doctets
-std::map<std::string, int> dst_ip_t;
+std::map<std::string, int> dst_ip_t0;
 //      |doctets  |dsp_ip
 std::map<int, std::string> tdst_ip;
+
+//      |dst_ip                |src_ip               |dst_port     |src_port     |protocol|doctets
+std::map<std::string, std::map<std::string, std::map<int, std::map<int, std::map<int, int>>>>> dst_ip_m0;
+std::map<std::string, std::map<std::string, std::map<int, std::map<int, std::map<int, int>>>>> dst_ip_m1;
+//      |dst_ip                |src_ip               |dst_port     |src_port     |protocol|dpkts
+std::map<std::string, std::map<std::string, std::map<int, std::map<int, std::map<int, int>>>>> dst_ip_mp;
 
 
 /// Plugin definition
@@ -68,11 +87,60 @@ IPX_API struct ipx_plugin_info ipx_plugin_info = {
     "2.2.0"
 };
 
+const char *gxmlcfg;
+struct pfr_sql_data pdata;
+int sync_shm_s = 0;
+int sync_shm_c = 0;
+int sync_shm_new_data = 0;
+
+const char *key_sem0 = "/key_sem0";
+sem_t *sem0;
+
+const char *shm_key_p0 = "/tmp/key0_shm0";
+key_t shm_key0;
+int shm_id = 0;
+void *shm_addr;
+
+
+void sig_proc(int sig_num) {
+ signal(sig_num,sig_proc);
+ alarm(600);
+#ifdef DEBUG
+ printf("alarm\n");
+#endif
+ sync_shm_s = 1;
+}
+
+
 int ipx_plugin_init(ipx_ctx_t *ctx, const char *xml_config) {
+        gxmlcfg = xml_config;
         Config config(xml_config);
         pfr_ipx s_ipx(config);
         pfr_ipx_int s_ipx_int(config);
 
+        pdata.net = s_ipx;
+        pdata.intf = s_ipx_int;
+
+        signal(SIGALRM, sig_proc);
+        alarm(600);
+
+        sem_unlink(key_sem0);
+        do {
+            sem0 = sem_open(key_sem0, O_CREAT|O_EXCL, S_IRWXU, 1);
+            std::cout << "sem_open error: " << errno << std::endl;
+        } while ((sem0 == SEM_FAILED) && (errno == EEXIST));
+        std::cout << "sem_open: " << sem0 << std::endl;
+        
+        shm_key0 = ftok(shm_key_p0, 1);
+        if(shm_id == -1) {
+            perror("ftok error");
+            exit(1);
+        }
+
+        std::cout << "ftok: " << shm_key0 << std::endl;
+        shm_id = shmget(shm_key0, sizeof(dst_ip_t0), 0);
+        shmctl(shm_id, IPC_RMID, 0);
+        
         std::cout << s_ipx_int.get("10.229.6.0", 3, 1) << std::endl;
         std::cout << s_ipx_int.get("10.229.4.0", 3, 1) << std::endl;
         std::cout << s_ipx_int.get("10.229.4.0", 2694, 2518) << std::endl;
@@ -89,39 +157,6 @@ int ipx_plugin_init(ipx_ctx_t *ctx, const char *xml_config) {
         std::cout << s_ipx.isDst_aut_num(333) << std::endl;
         std::cout << s_ipx.isDst_aut_num(3333) << std::endl;
 
-
-    /*
-    std::unique_ptr<Forwarder> forwarder;
-
-    try {
-        Config config(xml_config);
-        forwarder.reset(new Forwarder(config, ctx));
-
-    } catch (const std::invalid_argument &ex) {
-        IPX_CTX_ERROR(ctx, "%s", ex.what());
-        return IPX_ERR_DENIED;
-
-    } catch (const std::bad_alloc &ex) {
-        IPX_CTX_ERROR(ctx, "Memory error", 0);
-        return IPX_ERR_DENIED;
-
-    } catch (const std::runtime_error &ex) {
-        IPX_CTX_ERROR(ctx, "%s", ex.what());
-        return IPX_ERR_DENIED;
-
-    } catch (const std::exception &ex) {
-        IPX_CTX_ERROR(ctx, "Caught exception %s", ex.what());
-        return IPX_ERR_DENIED;
-
-    } catch (...) {
-        IPX_CTX_ERROR(ctx, "Caught unknown exception", 0);
-        return IPX_ERR_DENIED;
-    }
-
-    ipx_msg_mask_t mask = IPX_MSG_IPFIX | IPX_MSG_SESSION;
-    ipx_ctx_subscribe(ctx, &mask, NULL);
-    ipx_ctx_private_set(ctx, forwarder.release());
-    */
     return IPX_OK;
 }
 
@@ -135,42 +170,122 @@ void ipx_plugin_destroy(ipx_ctx_t *ctx, void *priv) {
 }
 
 int ipx_plugin_process(ipx_ctx_t *ctx, void *priv, ipx_msg_t *msg) {
+
+    int type = ipx_msg_get_type(msg);
+    if (type != IPX_MSG_IPFIX) {
+       return IPX_OK;
+    }
+
+    const fds_iemgr_t *iemgr = ipx_ctx_iemgr_get(ctx);
+
+    //Convert the message to the IPFIX message and read it
+    ipx_msg_ipfix_t *ipfix_msg = ipx_msg_base2ipfix(msg);
+    pfr_collector::read_packet(ipfix_msg, iemgr);
+    
     /*
-    std::unique_ptr<Forwarder> forwarder;
-    Forwarder &forwarder = *(Forwarder *) priv;
+    if(sync_shm_s) {
+     for(std::map<std::string, int>::iterator it0 = dst_ip_t0.begin(); it0 != dst_ip_t0.end(); it0++) {
+      std::string dstaddr = it0->first;
+      int doctets = it0->second;
+      std::cout << "DSP_IP_M0: " << dstaddr << ":" << doctets << std::endl;
+     }
+     std::cout << "-----------------------------------------------: " <<  std::endl;
+     sync_shm_s = 0;
+    }
+    */
 
-    try {
-
-        switch (ipx_msg_get_type(msg)) {
-
-        case IPX_MSG_IPFIX:
-            forwarder.handle_ipfix_message(ipx_msg_base2ipfix(msg));
-            break;
-
-        case IPX_MSG_SESSION:
-            forwarder.handle_session_message(ipx_msg_base2session(msg));
-            break;
-
-        default: assert(0);
+     int dst_ip_t0_s = 0;
+     if(sync_shm_s) {
+        std::cout << "sync_shm_s: Trying!" << std::endl;
+        if(sem_trywait(sem0) == 0) {
+          std::cout << "SEM0: Locked!" << std::endl;
+        for(std::map<std::string, int>::iterator it0 = dst_ip_t0.begin(); it0 != dst_ip_t0.end(); it0++) {
+            std::string dstaddr = it0->first;
+            int doctets = it0->second;
+            std::cout << "DSP_IP_M0: " << dstaddr << ":" << doctets << std::endl;
         }
+          std::cout << "-----------------------------------------------: " <<  std::endl;
+          std::cout << "dst_ip_t0 sizeof: " << dst_ip_t0.size() << std::endl;
+          dst_ip_t0_s = sizeof(dst_ip_t0) + dst_ip_t0.size() * (sizeof(decltype(dst_ip_t0)::key_type) + sizeof(decltype(dst_ip_t0)::mapped_type));
+          std::cout << "dst_ip_t0 size: " << dst_ip_t0_s << std::endl;
 
-    } catch (const std::bad_alloc &ex) {
-        IPX_CTX_ERROR(ctx, "Memory error", 0);
-        return IPX_ERR_DENIED;
 
-    } catch (const std::runtime_error &ex) {
-        IPX_CTX_ERROR(ctx, "%s", ex.what());
-        return IPX_ERR_DENIED;
+          if(shm_id != 0)
+            shmctl(shm_id, IPC_RMID, 0);
+          if(shm_addr == NULL) {
+            shm_id = shmget(shm_key0, sizeof(dst_ip_t0), IPC_CREAT|IPC_EXCL);
+             if(shm_id == -1) {
+               perror("Shared memory 0");
+               exit(1);
+             }
+          } else {
+            shmdt(shm_addr);
+            shmctl(shm_id, IPC_RMID, 0);
+            shm_id = shmget(shm_key0, sizeof(dst_ip_t0), IPC_CREAT|IPC_EXCL);
+             if(shm_id == -1) {
+               perror("Shared memory 1");
+               exit(1);
+             }
+          }
+        }
+        shm_addr = shmat(shm_id, NULL, 0);
+        if(shm_addr == (void *) -1) {
+           perror("Shared memory attach");
+           exit(1);
+        }
+        std::cout << "shm_addr: " << shm_addr << std::endl;
+        //? memcpy(shm_addr, dst_ip_t1);
+        void *ret_shm_addr = NULL;
+        ret_shm_addr = std::memcpy(shm_addr, (void *) &dst_ip_t0, dst_ip_t0_s);
+        std::cout << "ret_shm_addr: " << ret_shm_addr << std::endl;
+        if(sem_post(sem0) == 0) {
+          std::cout << "SEM0: UnLocked!" << std::endl;
+        }
+     sync_shm_new_data = 1;
+     sync_shm_s = 0;
+    } 
 
-    } catch (const std::exception &ex) {
-        IPX_CTX_ERROR(ctx, "Caught exception %s", ex.what());
-        return IPX_ERR_DENIED;
-
-    } catch (...) {
-       IPX_CTX_ERROR(ctx, "Caught unknown exception", 0);
-        return IPX_ERR_DENIED;
+    // if(sync_shm_s) {
+    //  sem is locked;
+    //  copy(dst_ip_t0, dst_ip_t1);
+    //  clear(dst_ip_t0);
+    //  if(addr == NULL) {
+    //   shm_id = shm_get(key, sizeof(dst_ip_t1), mode)
+    //  } else {
+    //   shmdt(shm_addr);
+    //   shm_ctl(shm_id, IPC_RMID);
+    //   shm_id = shm_get(key, sizeof(dst_ip_t1), mode)
+    //  }
+    //
+    //  shm_addr = shmat(shm_id, 0, flag);
+    //
+    //  ? memcpy(addr, dst_ip_t1);
+    //
+    //  sync_shm_new_data = 1;
+    //  sync_shm_s = 0;
+    //  sem is released
+    // }
+    
+    /*
+    for(std::map<std::string, std::map<std::string, std::map<int, std::map<int, std::map<int, int>>>>>::iterator it0 = dst_ip_m0.begin(); it0 != dst_ip_m0.end(); it0++) {
+     std::string srcaddr = it0->first;
+     for(std::map<std::string, std::map<int, std::map<int, std::map<int, int>>>>::iterator it1 = dst_ip_m0[srcaddr].begin(); it1 != dst_ip_m0[srcaddr].end(); it1++) {
+      std::string dstaddr = it1->first;
+      for(std::map<int, std::map<int, std::map<int, int>>>::iterator it2 = dst_ip_m0[srcaddr][dstaddr].begin(); it2 != dst_ip_m0[srcaddr][dstaddr].end(); it2++) {
+      int srcport = it2->first;
+       for(std::map<int, std::map<int, int>>::iterator it3 = dst_ip_m0[srcaddr][dstaddr][srcport].begin(); it3 != dst_ip_m0[srcaddr][dstaddr][srcport].end(); it3++) {
+       int dstport = it3->first;
+        for(std::map<int, int>::iterator it4 = dst_ip_m0[srcaddr][dstaddr][srcport][dstport].begin(); it4 != dst_ip_m0[srcaddr][dstaddr][srcport][dstport].end(); it4++) {
+        int proto = it4->first;
+        int doctets = it4->second;
+        std::cout << "DSP_IP_M0: " << srcaddr << ":" << dstaddr << ":" <<srcport << ":" << dstport << ":" << proto << ":" << doctets << std::endl;
+        } 
+       }
+      }
+     }
     }
     */
 
     return IPX_OK;
+
 }
