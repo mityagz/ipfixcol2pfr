@@ -211,17 +211,17 @@ int ipx_plugin_process(ipx_ctx_t *ctx, void *priv, ipx_msg_t *msg) {
             for(std::map<std::string, int>::iterator it0 = dst_ip_t0.begin(); it0 != dst_ip_t0.end(); it0++) {
                 dstaddr += it0->first + ':';
             }
-            std::cout << "DSP_IP_M0: " << dstaddr << std::endl;
+            //std::cout << "DSP_IP_M0: " << dstaddr << std::endl;
             dst_ip_str = (char *)dstaddr.c_str();
             std::cout << "DSP_IP_STR: " << dst_ip_str << std::endl;
             int dst_ip_str_len = strlen(dst_ip_str);
-            std::cout << "DSP_IP_STR_LEN: " << dst_ip_str_len << std::endl;
+            //std::cout << "DSP_IP_STR_LEN: " << dst_ip_str_len << std::endl;
 
             //dst_ip_t0_s = sizeof(dst_ip_t0) + dst_ip_t0.size() * (sizeof(decltype(dst_ip_t0)::key_type) + sizeof(decltype(dst_ip_t0)::mapped_type));
 
             std::cout << "shm_id0: " << shm_id << std::endl;
             if(shm_id == 0) {
-                shm_id = shmget(shm_key0, dst_ip_str_len, IPC_CREAT);
+                shm_id = shmget(shm_key0, dst_ip_str_len + 1, IPC_CREAT);
                 if(shm_id == -1) {
                     perror("Shared memory 0");
                     exit(1);
@@ -230,7 +230,7 @@ int ipx_plugin_process(ipx_ctx_t *ctx, void *priv, ipx_msg_t *msg) {
                 if(shm_addr != NULL) {
                 shmdt(shm_addr);
                 shmctl(shm_id, IPC_RMID, 0);
-                shm_id = shmget(shm_key0, dst_ip_str_len, IPC_CREAT|IPC_EXCL);
+                shm_id = shmget(shm_key0, dst_ip_str_len + 1, IPC_CREAT|IPC_EXCL);
                 if(shm_id == -1) {
                     perror("Shared memory 1");
                     exit(1);
@@ -244,7 +244,8 @@ int ipx_plugin_process(ipx_ctx_t *ctx, void *priv, ipx_msg_t *msg) {
                 exit(1);
             }
             std::cout << "shm_addr: " << shm_addr << std::endl;
-            ret_shm_addr = (char *)std::memcpy(shm_addr, (void *) dst_ip_str, dst_ip_str_len);
+            memset(shm_addr, 0, dst_ip_str_len);
+            ret_shm_addr = (char *)std::memcpy(shm_addr, (void *) dst_ip_str, dst_ip_str_len + 1);
             std::cout << "ret_shm_addr: " << ret_shm_addr << std::endl;
             std::cout << "-----------------------------------------------: " <<  std::endl;
         }
