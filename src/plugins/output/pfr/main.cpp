@@ -48,6 +48,7 @@
 #include <iostream>
 #include <cstdint>
 #include <cstring>
+#include <type_traits>
 #include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
@@ -67,6 +68,7 @@
 std::map<std::string, tuple5 *> dst_ip;
 //      |dsp_ip     |doctets
 std::map<std::string, int> dst_ip_t0;
+std::map<std::string, int> *dst_ip_t0_ptr;
 //      |doctets  |dsp_ip
 std::map<int, std::string> tdst_ip;
 
@@ -104,7 +106,7 @@ void *shm_addr;
 
 void sig_proc(int sig_num) {
  signal(sig_num,sig_proc);
- alarm(600);
+ alarm(60);
 #ifdef DEBUG
  printf("alarm\n");
 #endif
@@ -122,7 +124,7 @@ int ipx_plugin_init(ipx_ctx_t *ctx, const char *xml_config) {
         pdata.intf = s_ipx_int;
 
         signal(SIGALRM, sig_proc);
-        alarm(600);
+        alarm(60);
 
         sem_unlink(key_sem0);
         do {
@@ -132,14 +134,12 @@ int ipx_plugin_init(ipx_ctx_t *ctx, const char *xml_config) {
         std::cout << "sem_open: " << sem0 << std::endl;
         
         shm_key0 = ftok(shm_key_p0, 1);
-        if(shm_id == -1) {
+        if(shm_key0 == -1) {
             perror("ftok error");
             exit(1);
         }
 
         std::cout << "ftok: " << shm_key0 << std::endl;
-        shm_id = shmget(shm_key0, sizeof(dst_ip_t0), 0);
-        shmctl(shm_id, IPC_RMID, 0);
         
         std::cout << s_ipx_int.get("10.229.6.0", 3, 1) << std::endl;
         std::cout << s_ipx_int.get("10.229.4.0", 3, 1) << std::endl;
@@ -195,49 +195,62 @@ int ipx_plugin_process(ipx_ctx_t *ctx, void *priv, ipx_msg_t *msg) {
     */
 
      int dst_ip_t0_s = 0;
+     int dst_ip_size = 0;
+     char *dst_ip_str;
+     std::string dstaddr;
+     char *ret_shm_addr;
+
      if(sync_shm_s) {
         std::cout << "sync_shm_s: Trying!" << std::endl;
         if(sem_trywait(sem0) == 0) {
           std::cout << "SEM0: Locked!" << std::endl;
-        for(std::map<std::string, int>::iterator it0 = dst_ip_t0.begin(); it0 != dst_ip_t0.end(); it0++) {
-            std::string dstaddr = it0->first;
-            int doctets = it0->second;
-            std::cout << "DSP_IP_M0: " << dstaddr << ":" << doctets << std::endl;
-        }
-          std::cout << "-----------------------------------------------: " <<  std::endl;
           std::cout << "dst_ip_t0 sizeof: " << dst_ip_t0.size() << std::endl;
-          dst_ip_t0_s = sizeof(dst_ip_t0) + dst_ip_t0.size() * (sizeof(decltype(dst_ip_t0)::key_type) + sizeof(decltype(dst_ip_t0)::mapped_type));
-          std::cout << "dst_ip_t0 size: " << dst_ip_t0_s << std::endl;
+          int dst_ip_size = dst_ip_t0.size();
 
+        if(dst_ip_t0.size() > 0) {
+            for(std::map<std::string, int>::iterator it0 = dst_ip_t0.begin(); it0 != dst_ip_t0.end(); it0++) {
+                dstaddr += it0->first + ':';
+            }
+            std::cout << "DSP_IP_M0: " << dstaddr << std::endl;
+            dst_ip_str = (char *)dstaddr.c_str();
+            std::cout << "DSP_IP_STR: " << dst_ip_str << std::endl;
+            int dst_ip_str_len = strlen(dst_ip_str);
+            std::cout << "DSP_IP_STR_LEN: " << dst_ip_str_len << std::endl;
 
-          if(shm_id != 0)
-            shmctl(shm_id, IPC_RMID, 0);
-          if(shm_addr == NULL) {
-            shm_id = shmget(shm_key0, sizeof(dst_ip_t0), IPC_CREAT|IPC_EXCL);
-             if(shm_id == -1) {
-               perror("Shared memory 0");
-               exit(1);
-             }
-          } else {
-            shmdt(shm_addr);
-            shmctl(shm_id, IPC_RMID, 0);
-            shm_id = shmget(shm_key0, sizeof(dst_ip_t0), IPC_CREAT|IPC_EXCL);
-             if(shm_id == -1) {
-               perror("Shared memory 1");
-               exit(1);
-             }
-          }
+            //dst_ip_t0_s = sizeof(dst_ip_t0) + dst_ip_t0.size() * (sizeof(decltype(dst_ip_t0)::key_type) + sizeof(decltype(dst_ip_t0)::mapped_type));
+
+            std::cout << "shm_id0: " << shm_id << std::endl;
+            if(shm_id == 0) {
+                shm_id = shmget(shm_key0, dst_ip_str_len, IPC_CREAT);
+                if(shm_id == -1) {
+                    perror("Shared memory 0");
+                    exit(1);
+                }
+            else if(shm_id > 0) {
+                if(shm_addr != NULL) {
+                shmdt(shm_addr);
+                shmctl(shm_id, IPC_RMID, 0);
+                shm_id = shmget(shm_key0, dst_ip_str_len, IPC_CREAT|IPC_EXCL);
+                if(shm_id == -1) {
+                    perror("Shared memory 1");
+                    exit(1);
+                }
+                }
+            }
+            }
+            shm_addr = shmat(shm_id, NULL, 0);
+            if(shm_addr == (void *) -1) {
+                perror("Shared memory attach");
+                exit(1);
+            }
+            std::cout << "shm_addr: " << shm_addr << std::endl;
+            ret_shm_addr = (char *)std::memcpy(shm_addr, (void *) dst_ip_str, dst_ip_str_len);
+            std::cout << "ret_shm_addr: " << ret_shm_addr << std::endl;
+            std::cout << "-----------------------------------------------: " <<  std::endl;
         }
-        shm_addr = shmat(shm_id, NULL, 0);
-        if(shm_addr == (void *) -1) {
-           perror("Shared memory attach");
-           exit(1);
+
         }
-        std::cout << "shm_addr: " << shm_addr << std::endl;
-        //? memcpy(shm_addr, dst_ip_t1);
-        void *ret_shm_addr = NULL;
-        ret_shm_addr = std::memcpy(shm_addr, (void *) &dst_ip_t0, dst_ip_t0_s);
-        std::cout << "ret_shm_addr: " << ret_shm_addr << std::endl;
+
         if(sem_post(sem0) == 0) {
           std::cout << "SEM0: UnLocked!" << std::endl;
         }
@@ -245,27 +258,6 @@ int ipx_plugin_process(ipx_ctx_t *ctx, void *priv, ipx_msg_t *msg) {
      sync_shm_s = 0;
     } 
 
-    // if(sync_shm_s) {
-    //  sem is locked;
-    //  copy(dst_ip_t0, dst_ip_t1);
-    //  clear(dst_ip_t0);
-    //  if(addr == NULL) {
-    //   shm_id = shm_get(key, sizeof(dst_ip_t1), mode)
-    //  } else {
-    //   shmdt(shm_addr);
-    //   shm_ctl(shm_id, IPC_RMID);
-    //   shm_id = shm_get(key, sizeof(dst_ip_t1), mode)
-    //  }
-    //
-    //  shm_addr = shmat(shm_id, 0, flag);
-    //
-    //  ? memcpy(addr, dst_ip_t1);
-    //
-    //  sync_shm_new_data = 1;
-    //  sync_shm_s = 0;
-    //  sem is released
-    // }
-    
     /*
     for(std::map<std::string, std::map<std::string, std::map<int, std::map<int, std::map<int, int>>>>>::iterator it0 = dst_ip_m0.begin(); it0 != dst_ip_m0.end(); it0++) {
      std::string srcaddr = it0->first;
