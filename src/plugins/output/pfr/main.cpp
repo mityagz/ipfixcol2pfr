@@ -138,6 +138,9 @@ int ipx_plugin_init(ipx_ctx_t *ctx, const char *xml_config) {
             perror("ftok error");
             exit(1);
         }
+        shm_id = shmget(shm_key0, 0, 0);
+        shmctl(shm_id, IPC_RMID, 0);
+        shm_id = 0;
 
         std::cout << "ftok: " << shm_key0 << std::endl;
         
@@ -248,6 +251,7 @@ int ipx_plugin_process(ipx_ctx_t *ctx, void *priv, ipx_msg_t *msg) {
             ret_shm_addr = (char *)std::memcpy(shm_addr, (void *) dst_ip_str, dst_ip_str_len + 1);
             std::cout << "ret_shm_addr: " << ret_shm_addr << std::endl;
             std::cout << "-----------------------------------------------: " <<  std::endl;
+            shmdt(shm_addr);
         }
 
         }
