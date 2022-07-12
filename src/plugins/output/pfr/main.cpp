@@ -70,7 +70,7 @@ std::map<std::string, tuple5 *> dst_ip;
 std::map<std::string, int> dst_ip_t0;
 std::map<std::string, int> *dst_ip_t0_ptr;
 //      |doctets  |dsp_ip
-std::map<int, std::string> tdst_ip;
+std::map<int, std::string, std::greater<int>> tdst_ip;
 
 //      |dst_ip                |src_ip               |dst_port     |src_port     |protocol|doctets
 std::map<std::string, std::map<std::string, std::map<int, std::map<int, std::map<int, int>>>>> dst_ip_m0;
@@ -106,7 +106,7 @@ void *shm_addr;
 
 void sig_proc(int sig_num) {
  signal(sig_num,sig_proc);
- alarm(60);
+ alarm(600);
 #ifdef DEBUG
  printf("alarm\n");
 #endif
@@ -124,7 +124,7 @@ int ipx_plugin_init(ipx_ctx_t *ctx, const char *xml_config) {
         pdata.intf = s_ipx_int;
 
         signal(SIGALRM, sig_proc);
-        alarm(60);
+        alarm(600);
 
         sem_unlink(key_sem0);
         do {
@@ -213,13 +213,18 @@ int ipx_plugin_process(ipx_ctx_t *ctx, void *priv, ipx_msg_t *msg) {
         if(dst_ip_t0.size() > 0) {
             for(std::map<std::string, int>::iterator it0 = dst_ip_t0.begin(); it0 != dst_ip_t0.end(); it0++) {
                 dstaddr += it0->first + ':';
+                tdst_ip[it0->second] = it0->first;
             }
-            //std::cout << "DSP_IP_M0: " << dstaddr << std::endl;
+
+            /*
+            for(std::map<int, std::string>::iterator it0 = tdst_ip.begin(); it0 != tdst_ip.end(); it0++) {
+                dstaddr += it0->second + ':';
+            }
+            */
+            
             dst_ip_str = (char *)dstaddr.c_str();
             std::cout << "DSP_IP_STR: " << dst_ip_str << std::endl;
             int dst_ip_str_len = strlen(dst_ip_str);
-            //std::cout << "DSP_IP_STR_LEN: " << dst_ip_str_len << std::endl;
-
             //dst_ip_t0_s = sizeof(dst_ip_t0) + dst_ip_t0.size() * (sizeof(decltype(dst_ip_t0)::key_type) + sizeof(decltype(dst_ip_t0)::mapped_type));
 
             std::cout << "shm_id0: " << shm_id << std::endl;
@@ -229,8 +234,9 @@ int ipx_plugin_process(ipx_ctx_t *ctx, void *priv, ipx_msg_t *msg) {
                     perror("Shared memory 0");
                     exit(1);
                 }
+            }
             else if(shm_id > 0) {
-                if(shm_addr != NULL) {
+                std::cout << "shm_id1: " << shm_id << std::endl;
                 shmdt(shm_addr);
                 shmctl(shm_id, IPC_RMID, 0);
                 shm_id = shmget(shm_key0, dst_ip_str_len + 1, IPC_CREAT|IPC_EXCL);
@@ -238,8 +244,6 @@ int ipx_plugin_process(ipx_ctx_t *ctx, void *priv, ipx_msg_t *msg) {
                     perror("Shared memory 1");
                     exit(1);
                 }
-                }
-            }
             }
             shm_addr = shmat(shm_id, NULL, 0);
             if(shm_addr == (void *) -1) {
@@ -252,6 +256,15 @@ int ipx_plugin_process(ipx_ctx_t *ctx, void *priv, ipx_msg_t *msg) {
             std::cout << "ret_shm_addr: " << ret_shm_addr << std::endl;
             std::cout << "-----------------------------------------------: " <<  std::endl;
             shmdt(shm_addr);
+            
+            // free map
+            for(std::map<std::string, int>::iterator it0 = dst_ip_t0.begin(); it0 != dst_ip_t0.end(); it0++) {
+                dst_ip_t0.erase(it0); 
+            }
+
+            for(std::map<int, std::string>::iterator it0 = tdst_ip.begin(); it0 != tdst_ip.end(); it0++) {
+                tdst_ip.erase(it0); 
+            }
         }
 
         }
