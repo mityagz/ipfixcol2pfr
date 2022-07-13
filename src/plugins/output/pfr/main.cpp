@@ -106,7 +106,7 @@ void *shm_addr;
 
 void sig_proc(int sig_num) {
  signal(sig_num,sig_proc);
- alarm(600);
+ alarm(3600);
 #ifdef DEBUG
  printf("alarm\n");
 #endif
