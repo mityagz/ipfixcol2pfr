@@ -71,6 +71,7 @@ std::map<std::string, int> dst_ip_t0;
 std::map<std::string, int> *dst_ip_t0_ptr;
 //      |doctets  |dsp_ip
 std::map<int, std::string, std::greater<int>> tdst_ip;
+std::multimap<int, std::string, std::greater<int>> tdst_ip0;
 
 //      |dst_ip                |src_ip               |dst_port     |src_port     |protocol|doctets
 std::map<std::string, std::map<std::string, std::map<int, std::map<int, std::map<int, int>>>>> dst_ip_m0;
@@ -94,6 +95,7 @@ struct pfr_sql_data pdata;
 int sync_shm_s = 0;
 int sync_shm_c = 0;
 int sync_shm_new_data = 0;
+int max_dst_ip = 500;
 
 const char *key_sem0 = "/key_sem0";
 sem_t *sem0;
@@ -119,6 +121,7 @@ int ipx_plugin_init(ipx_ctx_t *ctx, const char *xml_config) {
         Config config(xml_config);
         pfr_ipx s_ipx(config);
         pfr_ipx_int s_ipx_int(config);
+        max_dst_ip = pfr_dst_max::get_pfr_dst_max(config);
 
         pdata.net = s_ipx;
         pdata.intf = s_ipx_int;
@@ -143,6 +146,8 @@ int ipx_plugin_init(ipx_ctx_t *ctx, const char *xml_config) {
         shm_id = 0;
 
         std::cout << "ftok: " << shm_key0 << std::endl;
+
+        std::cout << max_dst_ip << std::endl;
         
         std::cout << s_ipx_int.get("10.229.6.0", 3, 1) << std::endl;
         std::cout << s_ipx_int.get("10.229.4.0", 3, 1) << std::endl;
@@ -172,6 +177,18 @@ void ipx_plugin_destroy(ipx_ctx_t *ctx, void *priv) {
     */
 }
 
+
+template<typename K, typename V>
+std::multimap<V, K> invertMap(std::map<K, V> const &map) {
+    std::multimap<V, K> multimap;
+         
+    for (auto const &pair: map) {
+        multimap.insert(std::make_pair(pair.second, pair.first));
+    }
+    return multimap;
+}
+ 
+
 int ipx_plugin_process(ipx_ctx_t *ctx, void *priv, ipx_msg_t *msg) {
 
     int type = ipx_msg_get_type(msg);
@@ -185,17 +202,6 @@ int ipx_plugin_process(ipx_ctx_t *ctx, void *priv, ipx_msg_t *msg) {
     ipx_msg_ipfix_t *ipfix_msg = ipx_msg_base2ipfix(msg);
     pfr_collector::read_packet(ipfix_msg, iemgr);
     
-    /*
-    if(sync_shm_s) {
-     for(std::map<std::string, int>::iterator it0 = dst_ip_t0.begin(); it0 != dst_ip_t0.end(); it0++) {
-      std::string dstaddr = it0->first;
-      int doctets = it0->second;
-      std::cout << "DSP_IP_M0: " << dstaddr << ":" << doctets << std::endl;
-     }
-     std::cout << "-----------------------------------------------: " <<  std::endl;
-     sync_shm_s = 0;
-    }
-    */
 
      int dst_ip_t0_s = 0;
      int dst_ip_size = 0;
@@ -212,13 +218,25 @@ int ipx_plugin_process(ipx_ctx_t *ctx, void *priv, ipx_msg_t *msg) {
 
         if(dst_ip_t0.size() > 0) {
             for(std::map<std::string, int>::iterator it0 = dst_ip_t0.begin(); it0 != dst_ip_t0.end(); it0++) {
-                dstaddr += it0->first + ':';
-                tdst_ip[it0->second] = it0->first;
+                ///dstaddr += it0->first + ':';
+                //tdst_ip0[it0->second] = it0->first;
+            }
+
+            for (auto const &pair: dst_ip_t0) {
+                tdst_ip0.insert(std::make_pair(pair.second, pair.first));
+            }
+            
+            int dst_ip_cnt = 0;
+            for(std::map<int, std::string>::iterator it0 = tdst_ip0.begin(); it0 != tdst_ip0.end(); it0++) {
+                dstaddr += it0->second + ':';
+                if(dst_ip_cnt > max_dst_ip)
+                    break;
+                dst_ip_cnt++;
             }
 
             /*
-            for(std::map<int, std::string>::iterator it0 = tdst_ip.begin(); it0 != tdst_ip.end(); it0++) {
-                dstaddr += it0->second + ':';
+            for(std::map<int, std::string>::iterator it0 = tdst_ip0.begin(); it0 != tdst_ip0.end(); it0++) {
+                std::cout << "tdst_ip0:" << it0->first << ":" << it0->second << std::endl;
             }
             */
             
@@ -257,13 +275,17 @@ int ipx_plugin_process(ipx_ctx_t *ctx, void *priv, ipx_msg_t *msg) {
             std::cout << "-----------------------------------------------: " <<  std::endl;
             shmdt(shm_addr);
             
-            // free map
+            // free maps
             for(std::map<std::string, int>::iterator it0 = dst_ip_t0.begin(); it0 != dst_ip_t0.end(); it0++) {
                 dst_ip_t0.erase(it0); 
             }
 
             for(std::map<int, std::string>::iterator it0 = tdst_ip.begin(); it0 != tdst_ip.end(); it0++) {
                 tdst_ip.erase(it0); 
+            }
+
+            for(std::map<int, std::string>::iterator it0 = tdst_ip0.begin(); it0 != tdst_ip0.end(); it0++) {
+                tdst_ip0.erase(it0); 
             }
         }
 

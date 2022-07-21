@@ -31,6 +31,10 @@ class pfr_ipx {
 };
 */
 
+int pfr_dst_max::get_pfr_dst_max(Config &config) {
+    int max_dst_ip = config.maxdst;
+    return max_dst_ip;
+}
 
 pfr_ipx_int::pfr_ipx_int() {}
 pfr_ipx_int::pfr_ipx_int(Config &config) {

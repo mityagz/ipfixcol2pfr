@@ -19,6 +19,7 @@ struct DBHostConfig {
 class Config {
     public:
     DBHostConfig host;
+    int maxdst;
     Config() {};
     Config(const char *xml_config);
     

@@ -30,6 +30,14 @@ class pfr_ipx {
   bool isOutput(int ifidx);
 };
 
+class pfr_dst_max {
+ private:
+  int pfr_dst_maxr;
+ public:
+  pfr_dst_max(Config &);
+  static int get_pfr_dst_max(Config &);
+};
+
 struct pfr_sql_data {
  class pfr_ipx net;
  class pfr_ipx_int intf;
