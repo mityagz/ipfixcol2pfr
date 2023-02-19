@@ -39,7 +39,7 @@ static fds_xml_args params_schema[] = {
     FDS_OPTS_ELEM(DBNAME, "dbname", FDS_OPTS_T_STRING, 0             ),
     FDS_OPTS_ELEM(DBHOST, "dbhost", FDS_OPTS_T_STRING, 0             ),
     FDS_OPTS_ELEM(DBPORT   , "dbport"   , FDS_OPTS_T_UINT  , 0             ),
-    FDS_OPTS_ELEM(MAXDST, "maxdst"   , FDS_OPTS_T_UINT  , 0             ),
+    FDS_OPTS_ELEM(MAXDST, "maxdst"   ,   FDS_OPTS_T_UINT, 0             ),
     FDS_OPTS_END
 };
 
@@ -72,7 +72,7 @@ const fds_xml_cont *content;
             host.dbport = static_cast<uint16_t>(content->val_uint);
             break;
         case MAXDST:
-            if (content->val_uint > UINT16_MAX) {
+            if (content->val_uint > UINT32_MAX) {
                 throw std::invalid_argument("ins    valid host port " + std::to_string(content->val_uint));
             }
             maxdst = static_cast<uint16_t>(content->val_uint);
