@@ -25,6 +25,14 @@ include(CMakeModules/install_dirs.cmake)
 include(CheckCCompilerFlag)
 include(CheckCXXCompilerFlag)
 
+if(CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
+    # Include headers
+    include_directories(/usr/local/include/libepoll-shim)
+endif()
+
+
+
+
 # Include custom FindXXX modules
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/CMakeModules")
 
@@ -71,6 +79,10 @@ set(CMAKE_C_FLAGS_DEBUG      "-g -O0 -Wall -Wextra -pedantic")
 set(CMAKE_CXX_FLAGS          "${CMAKE_CXX_FLAGS} -fvisibility=hidden -std=gnu++11")
 set(CMAKE_CXX_FLAGS_RELEASE  "-O2 -DNDEBUG")
 set(CMAKE_CXX_FLAGS_DEBUG    "-g -O0 -Wall -Wextra -pedantic")
+set(CMAKE_CXX_LINKER_FLAGS  "-export-dynamic")
+set(CMAKE_C_LINKER_FLAGS  "-export-dynamic")
+set(CMAKE_SHARED_LINKER_FLAGS "-E")
+set(CMAKE_SHARED_LINKER_FLAGS "-export-dynamic")
 
 if (ENABLE_TESTS AND ENABLE_TESTS_COVERAGE)
     # Additional flags for code coverage

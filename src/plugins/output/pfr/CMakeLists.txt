@@ -18,6 +18,6 @@ target_include_directories(pfr-output PRIVATE ${PostgreSQL_INCLUDE_DIRS})
 target_link_libraries(pfr-output PRIVATE ${PostgreSQL_LIBRARIES})
 
 install(
-	TARGETS pfr-output
-	LIBRARY DESTINATION "${CMAKE_INSTALL_FULL_LIBDIR}/ipfixcol2/"
+    TARGETS pfr-output
+    LIBRARY DESTINATION "${INSTALL_DIR_LIB}/ipfixcol2/"
 )
