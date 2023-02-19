@@ -1,6 +1,5 @@
 # Create a linkable module
 
-find_package(epoll-shim REQUIRED)
 
 add_library(udp-input MODULE
     udp.c
@@ -9,6 +8,7 @@ add_library(udp-input MODULE
 )
 
 if(CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
+ find_package(epoll-shim REQUIRED)
  target_include_directories(udp-input PRIVATE ${epoll-shim_INCLUDE_DIRS})
  target_link_libraries(udp-input PRIVATE ${epoll-shim_LIBRARIES})
  target_compile_options(udp-input PRIVATE -lepoll-shim)
