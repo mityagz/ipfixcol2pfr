@@ -100,7 +100,8 @@ int max_dst_ip = 500;
 const char *key_sem0 = "/key_sem0";
 sem_t *sem0;
 
-const char *shm_key_p0 = "/tmp/key0_shm0";
+//const char *shm_key_p0 = "/tmp/key0_shm0";
+const char *shm_key_p0 = "/etc/pfrd.conf";
 key_t shm_key0;
 int shm_id = 0;
 void *shm_addr;
