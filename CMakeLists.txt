@@ -28,6 +28,9 @@ include(CheckCXXCompilerFlag)
 if(CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
     # Include headers
     include_directories(/usr/local/include/libepoll-shim)
+else()
+    set(DIR_TO_BSD_LIB_FILE /usr/lib/x86_64-linux-gnu/libbsd.so)
+    target_link_libraries(${PROJECT_NAME} ${DIR_TO_BSD_LIB_FILE})
 endif()
 
 
