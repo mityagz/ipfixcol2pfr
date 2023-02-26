@@ -45,6 +45,7 @@
 #include <pthread.h>
 #include <errno.h>
 #include <signal.h>
+#include <string.h>
 
 #if defined(__OpenBSD__) || defined(__FreeBSD__)
 #include <pthread_np.h>
