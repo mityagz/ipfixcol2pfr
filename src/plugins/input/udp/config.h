@@ -43,6 +43,11 @@
 #define CONFIG_H
 
 #include <ipfixcol2.h>
+#if defined(__OpenBSD__) || defined(__FreeBSD__)
+#include <sys/epoll.h>
+#else
+#include <epoll.h>
+#endif
 #include "stdint.h"
 
 /** Parsed IP address */
