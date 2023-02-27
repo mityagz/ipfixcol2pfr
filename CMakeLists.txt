@@ -30,7 +30,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
     include_directories(/usr/local/include/libepoll-shim)
 else()
     set(DIR_TO_BSD_LIB_FILE /usr/lib64/libbsd.so)
-    target_link_libraries(${PROJECT_NAME} ${DIR_TO_BSD_LIB_FILE})
+    #target_link_libraries(${PROJECT_NAME} ${DIR_TO_BSD_LIB_FILE})
 endif()
 
 

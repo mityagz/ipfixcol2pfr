@@ -780,7 +780,7 @@ ipx_ctx_init(ipx_ctx_t *ctx, const char *params)
     // Restore the previous thread identification and signal mask
     pthread_sigmask(SIG_SETMASK, &set_old, NULL);
     //thread_set_name(old_ident);
-    strlcpy(ctx->name, old_ident, 16);
+    strncpy(ctx->name, old_ident, 16);
     thread_set_name(ctx);
 
     if (rc != IPX_OK) {
