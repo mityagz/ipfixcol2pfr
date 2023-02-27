@@ -230,7 +230,12 @@ Sender::send(const char *str, size_t len)
 
             // Connection failed
             char buffer[128];
+#ifdef __FreeBSD__
+            char *err_str = buffer;
+            strerror_r(errno, err_str, 128);
+#else
             const char *err_str = strerror_r(errno, buffer, 128);
+#endif
             IPX_CTX_INFO(_ctx, "(Send output) Destination '%s:%" PRIu16 "' disconnected: %s",
                 params.addr.c_str(), params.port, err_str);
             return SEND_FAILED;
