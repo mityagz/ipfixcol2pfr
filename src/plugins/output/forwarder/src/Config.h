@@ -41,6 +41,10 @@
 #pragma once
 
 #include <libfds.h>
+#if defined(__OpenBSD__) || defined(__FreeBSD__)
+#include <sys/socket.h>
+#include <netinet/in.h>
+#endif
 
 #include <string>
 #include <vector>
