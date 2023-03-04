@@ -925,6 +925,9 @@ process_socket(struct udp_data *instance, int sd)
         return;
     }
 
+    //msg_size = 1340;
+    msg_size = 65535;
+
     if (msg_size < (int) sizeof(uint16_t) || msg_size > UINT16_MAX) {
         // Remove the malformed message from the buffer
         uint16_t mini_buffer;
@@ -958,6 +961,21 @@ process_socket(struct udp_data *instance, int sd)
         free(buffer);
         return;
     }
+
+    /*
+    // Allocate the buffer 2
+    uint8_t *buffer2 = malloc(ret * sizeof(uint8_t));
+    memcpy(buffer2, buffer, ret);
+    free(buffer);
+    buffer = malloc(ret * sizeof(uint8_t));
+    memcpy(buffer, buffer2, ret);
+    msg_size = ret;
+    if (!buffer) {
+        IPX_CTX_ERROR(instance->ctx, "Memory allocation failed! (%s:%d)", __FILE__, __LINE__);
+        return;
+    }
+    */
+    msg_size = ret;
 
     if (ret != msg_size) {
         IPX_CTX_ERROR(instance->ctx, "Read operation failed! Got %zu of %zu bytes!",
