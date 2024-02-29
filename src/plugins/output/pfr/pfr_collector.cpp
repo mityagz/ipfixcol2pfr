@@ -322,7 +322,8 @@ void pfr_collector::read_record(struct fds_drec *rec, unsigned int indent, const
       tpl5.doctets = tpl11.doctets;
       tpl5.dpkts = tpl11.dpkts;
       dst_ip_m0[tpl5.srcaddr][tpl5.dstaddr][tpl5.srcport][tpl5.dstport][tpl5.proto] += tpl5.doctets;
-      dst_ip_t0[tpl5.dstaddr] += tpl5.doctets;
+      //dst_ip_t0[tpl5.dstaddr] += tpl5.doctets;
+      dst_ip_t0[tpl5.srcaddr + "," + tpl5.dstaddr] += tpl5.doctets;
     }
     
 /*

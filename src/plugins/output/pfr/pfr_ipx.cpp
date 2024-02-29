@@ -71,7 +71,7 @@ void pfr_ipx_int::sql_get_int(Config &config) {
                      "join pfr_peers pp on pp.interface_id = si.id "
                      "join pfr_dscp pd on pd.id = pp.dscp_id "
                      "join ipam_vrf vrf on vrf.id = a.vrf_id "
-                     "join pfr_peer_group gr on gr.id = pp.peer_group_id order by gr.description;";
+                     "join pfr_peer_group gr on gr.id = pp.peer_group_id where pp.id != 0 order by gr.description;";
 
     res = PQexec(conn, q0);    
     int ncols = PQnfields(res);
