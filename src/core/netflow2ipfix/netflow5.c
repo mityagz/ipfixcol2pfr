@@ -10,7 +10,11 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#ifdef __FreeBSD__
+#include <machine/endian.h>
+#else
 #include <endian.h>
+#endif
 #include <arpa/inet.h>
 #include <stdlib.h>
 #include <assert.h>

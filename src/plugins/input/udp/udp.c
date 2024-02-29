@@ -959,6 +959,8 @@ process_socket(struct udp_data *instance, int sd)
         return;
     }
 
+    msg_size = ret;
+
     if (ret != msg_size) {
         IPX_CTX_ERROR(instance->ctx, "Read operation failed! Got %zu of %zu bytes!",
             (size_t) ret, (size_t) msg_size);

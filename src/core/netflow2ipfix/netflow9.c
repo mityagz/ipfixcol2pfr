@@ -9,7 +9,11 @@
  */
 
 #include <stdint.h>
+#if defined(__OpenBSD__) || defined(__FreeBSD__)
+#include <machine/endian.h>
+#else
 #include <endian.h>
+#endif
 #include <assert.h>
 #include <arpa/inet.h>
 #include <stdlib.h>

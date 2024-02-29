@@ -138,9 +138,10 @@ const char* pfr_collector::session_src_addr(const struct ipx_session *ipx_desc, 
         const char *ret;
         if (net_desc->l3_proto == AF_INET) {
             ret = inet_ntop(AF_INET, &net_desc->addr_src.ipv4, src_addr, size);
+            return ret;
         } else {
             ret = inet_ntop(AF_INET6, &net_desc->addr_src.ipv6, src_addr, size);
-        return ret;
+            return ret;
         }
 }
 
@@ -274,7 +275,8 @@ void pfr_collector::read_record(struct fds_drec *rec, unsigned int indent, const
                 || finfo == 16 || finfo == 17 || finfo == 1 || finfo == 2) {
             pfr_collector::read_field(&field, indent, iemgr, rec->snap);
             std::string rbuf(buffer);
-            //std::cout << rbuf << ':';
+            //std::cout << "finfo: " << finfo << std::endl;
+            //std::cout << rbuf << ':' << std::endl;
             switch(finfo) {
                 case 8:
                  tpl11.srcaddr = rbuf;
